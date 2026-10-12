@@ -1,8 +1,10 @@
 #import <Foundation/Foundation.h>
 
-// Deliberately accepts only literal loopback hosts, with no redirects or proxies.
+// Accepts loopback IPs and localhost; localhost is canonicalized before transport.
 BOOL WAValidEndpoint(NSString *endpoint);
 BOOL WAValidRequestEndpoint(NSString *endpoint);
+NSURL *WALocalRequestURL(NSString *endpoint);
+BOOL WASettingFlag(id value, BOOL fallback);
 NSString *WAExtractReply(NSData *data, NSString **error);
 NSDictionary *WARequestBody(NSString *model, NSString *instruction, NSString *text);
 

@@ -87,6 +87,11 @@ int main(int argc, char **argv) { @autoreleasepool {
     for (NSString *url in @[@"http://127.0.0.1:11434/v1/chat/completions", @"http://localhost:1234/v1/chat/completions", @"http://[::1]:1234/v1/chat/completions"]) CHECK(WAValidEndpoint(url));
     for (NSString *url in @[@"https://example.com/v1/chat/completions", @"http://127.0.0.1.evil.test/v1/chat/completions", @"file:///v1/chat/completions", @"http://user@localhost/v1/chat/completions", @"http://localhost/v1/chat/completions?key=x", @"http://localhost/api/generate", @"http://localhost:99999/v1/chat/completions"]) CHECK(!WAValidEndpoint(url));
     NSString *err = nil;
+    CHECK(!WASettingFlag(@[], NO) && WASettingFlag(@{}, YES));
+    CHECK(!WASettingFlag(@"yes", NO) && !WASettingFlag(nil, NO));
+    CHECK(WASettingFlag(@YES, NO) && !WASettingFlag(@NO, YES));
+    CHECK([WALocalRequestURL(@"http://localhost:1234/v1/chat/completions").host isEqual:@"127.0.0.1"]);
+    CHECK(WALocalRequestURL(@"http://example.com/v1/chat/completions") == nil);
     NSData *(^data)(id) = ^NSData *(id obj) { return [NSJSONSerialization dataWithJSONObject:obj options:NSJSONWritingFragmentsAllowed error:nil]; };
     CHECK([WAExtractReply(data(@{@"choices": @[@{@"message": @{@"content": @" hello"}, @"finish_reason": @"stop"}]}), &err) isEqual:@" hello"]);
     CHECK([WAExtractReply(data(@{@"choices": @[@{@"message": @{@"content": @"<think>secret</think>\n\nFixed."}, @"finish_reason": @"stop"}]}), &err) isEqual:@"Fixed."]);

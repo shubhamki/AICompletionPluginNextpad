@@ -1,5 +1,17 @@
 #import "LocalModel.h"
 
+BOOL WASettingFlag(id value, BOOL fallback) {
+    return [value isKindOfClass:NSNumber.class] ? [value boolValue] : fallback;
+}
+
+NSURL *WALocalRequestURL(NSString *endpoint) {
+    if (!WAValidRequestEndpoint(endpoint)) return nil;
+    NSURLComponents *url = [NSURLComponents componentsWithString:endpoint];
+    // Never resolve a configurable hosts-file/DNS entry for localhost.
+    if ([url.host.lowercaseString isEqual:@"localhost"]) url.host = @"127.0.0.1";
+    return url.URL;
+}
+
 BOOL WAValidEndpoint(NSString *endpoint) {
     return WAValidRequestEndpoint(endpoint) && [[[NSURLComponents componentsWithString:endpoint] path] isEqual:@"/v1/chat/completions"];
 }
@@ -76,7 +88,7 @@ NSString *WAExtractReply(NSData *data, NSString **error) {
     config.HTTPCookieStorage = nil; config.URLCredentialStorage = nil; config.URLCache = nil;
     config.timeoutIntervalForRequest = 120; config.timeoutIntervalForResource = 120;
     _session = [NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:NSOperationQueue.mainQueue];
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:endpoint]];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:WALocalRequestURL(endpoint)];
     request.HTTPMethod = @"POST";
     [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
     request.HTTPBody = [NSJSONSerialization dataWithJSONObject:body options:0 error:nil];

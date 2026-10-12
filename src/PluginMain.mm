@@ -249,8 +249,8 @@ extern "C" NPP_EXPORT void beNotified(SCNotification *notification) {
                 automatic.endpoint = Controller().endpoint; automatic.model = Controller().model;
                 NSDictionary *settings = configPath ? [NSDictionary dictionaryWithContentsOfFile:configPath] : nil;
                 // Configuration is untrusted input; collections do not implement boolValue.
-                automatic.enabled = [settings[@"automatic"] isKindOfClass:NSNumber.class] ? [settings[@"automatic"] boolValue] : NO;
-                automatic.coding = [settings[@"coding"] isKindOfClass:NSNumber.class] ? [settings[@"coding"] boolValue] : YES;
+                automatic.enabled = WASettingFlag(settings[@"automatic"], NO);
+                automatic.coding = WASettingFlag(settings[@"coding"], YES);
                 automatic.completionModel = [settings[@"completionModel"] isKindOfClass:NSString.class] ? settings[@"completionModel"] : @"nextpad-complete:0.5b";
             }
             break;
