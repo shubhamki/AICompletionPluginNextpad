@@ -31,7 +31,8 @@ NSDictionary *WACodeRequest(NSString *model, const wa::Snapshot &s, BOOL fim) {
     return body;
 }
 NSString *WAFIMEndpoint(NSString *endpoint, NSString *model) {
-    if (!WAValidEndpoint(endpoint) || !([model hasPrefix:@"qwen2.5-coder:"] || [model hasPrefix:@"nextpad-coder:"] || [model hasPrefix:@"nextpad-complete:"])) return nil;
+    BOOL base = [model hasPrefix:@"qwen2.5-coder:"] && [model hasSuffix:@"-base"];
+    if (!WAValidEndpoint(endpoint) || !(base || [model hasPrefix:@"nextpad-complete:"])) return nil;
     NSURLComponents *url = [NSURLComponents componentsWithString:endpoint];
     // Native FIM is Ollama-specific; other local endpoints use the chat fallback.
     if (url.port.integerValue != 11434) return nil;
