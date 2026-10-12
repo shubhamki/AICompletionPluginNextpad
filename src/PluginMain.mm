@@ -8,7 +8,7 @@
 static wa::EditorBridge editor;
 static bool stopped = false;
 static NSString *const defaultEndpoint = @"http://127.0.0.1:11434/v1/chat/completions";
-static NSString *const defaultModel = @"nextpad-coder:0.5b";
+static NSString *const defaultModel = @"qwen2.5-coder:0.5b";
 static NSString *configPath;
 static WAAutoSuggest *automatic;
 
@@ -25,7 +25,10 @@ static void Alert(NSString *message) {
     bool _pending;
     uint64_t _generation;
     NSArray *_verifiedConfiguration;
-    NSTextField *_settingsEndpoint, *_settingsModel, *_settingsCompletion, *_settingsStatus;
+    NSTextField *_settingsEndpoint, *_settingsStatus;
+    NSComboBox *_settingsModel, *_settingsCompletion;
+    NSPopUpButton *_provider;
+    NSButton *_refreshButton;
     NSButton *_settingsCoding, *_testButton;
 }
 @property(nonatomic, strong) NSPanel *panel;
@@ -193,6 +196,39 @@ static void Alert(NSString *message) {
         self->_settingsStatus.stringValue = failure ?: @"Connection successful. Models available. Save to apply, then run your command or start typing.";
     }];
 }
+- (void)providerChanged:(id)sender {
+    if (_provider.indexOfSelectedItem == 0) _settingsEndpoint.stringValue = defaultEndpoint;
+    if (_provider.indexOfSelectedItem == 1) _settingsEndpoint.stringValue = @"http://127.0.0.1:1234/v1/chat/completions";
+    [_probe cancel]; _testButton.enabled = YES; _refreshButton.enabled = YES;
+    _verifiedConfiguration = nil;
+    [_settingsModel removeAllItems]; [_settingsCompletion removeAllItems];
+    _settingsCompletion.stringValue = @"";
+    _settingsStatus.stringValue = @"Start this server, then click Load models and choose a coding/chat model.";
+}
+- (void)loadSettingsModels:(id)sender {
+    NSString *endpoint = [_settingsEndpoint.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    [_probe cancel]; _verifiedConfiguration = nil; _testButton.enabled = NO; _refreshButton.enabled = NO;
+    _settingsStatus.stringValue = @"Loading available models from your local server…";
+    __weak WAController *weakSelf = self;
+    [_probe listEndpoint:endpoint completion:^(NSArray *models, NSString *failure) {
+        WAController *self = weakSelf; if (!self || stopped || !self->_settingsStatus) return;
+        self->_testButton.enabled = YES; self->_refreshButton.enabled = YES;
+        if (![endpoint isEqual:[self->_settingsEndpoint.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]]) {
+            self->_settingsStatus.stringValue = @"Endpoint changed. Load models again."; return;
+        }
+        [self->_settingsModel removeAllItems]; [self->_settingsCompletion removeAllItems];
+        if (failure) { self->_settingsStatus.stringValue = failure; return; }
+        if (!models.count) {
+            self->_settingsStatus.stringValue = @"No models available. Ollama: run ollama pull qwen2.5-coder:0.5b in Terminal. LM Studio: download/load a chat model. Then Load models again."; return;
+        }
+        [self->_settingsModel addItemsWithObjectValues:models]; [self->_settingsCompletion addItemsWithObjectValues:models];
+        if (![models containsObject:self->_settingsModel.stringValue]) {
+            self->_settingsModel.stringValue = [models containsObject:defaultModel] ? defaultModel : @"";
+        }
+        if (self->_settingsCompletion.stringValue.length && ![models containsObject:self->_settingsCompletion.stringValue]) self->_settingsCompletion.stringValue = @"";
+        self->_settingsStatus.stringValue = @"Choose an available coding/chat model from the dropdown. Leave inline model blank to reuse it. Then Test connection and Save.";
+    }];
+}
 - (void)openOllamaSetup:(id)sender { [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://ollama.com/download/mac"]]; }
 - (void)openLMStudioSetup:(id)sender { [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://lmstudio.ai/docs/app"]]; }
 - (void)settings {
@@ -203,19 +239,26 @@ static void Alert(NSString *message) {
     [self dismiss:nil];
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"Local writing assistant";
-    alert.informativeText = @"No local server? Install and open Ollama, then create the profiles from the README; or download a coding model in LM Studio and start its local server. Enter its exact model name below. Test connection before enabling automatic suggestions. Testing sends no document text. Tab accepts; Escape dismisses.";
-    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 480, 350)];
+    alert.informativeText = @"1. Install/open Ollama and run ollama pull qwen2.5-coder:0.5b in Terminal; or download/load a chat model in LM Studio and start its Developer server.\n2. Choose your server below; its default endpoint is filled in. For a custom port, use the port shown by that server.\n3. Load models, choose a coding/chat model, Test connection, then Save. No custom nextpad profiles are required.";
+    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 480, 410)];
+    _provider = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 365, 240, 30) pullsDown:NO];
+    [_provider addItemsWithTitles:@[@"Ollama (default port 11434)", @"LM Studio (default port 1234)", @"Custom local endpoint"]];
+    [_provider selectItemAtIndex:[_endpoint isEqual:defaultEndpoint] ? 0 : ([_endpoint isEqual:@"http://127.0.0.1:1234/v1/chat/completions"] ? 1 : 2)];
+    _provider.target = self; _provider.action = @selector(providerChanged:); [view addSubview:_provider];
+    _refreshButton = [NSButton buttonWithTitle:@"Load models" target:self action:@selector(loadSettingsModels:)];
+    _refreshButton.frame = NSMakeRect(260, 365, 210, 30); [view addSubview:_refreshButton];
     _settingsStatus = [NSTextField wrappingLabelWithString:@"Test the server and models, then Save. Normal editing works without a server."];
-    _settingsStatus.frame = NSMakeRect(0, 275, 480, 65); [view addSubview:_settingsStatus];
+    _settingsStatus.frame = NSMakeRect(0, 275, 480, 80); [view addSubview:_settingsStatus];
     _testButton = [NSButton buttonWithTitle:@"Test connection" target:self action:@selector(testSettingsConnection:)];
     _testButton.frame = NSMakeRect(0, 240, 150, 30); [view addSubview:_testButton];
     NSButton *ollama = [NSButton buttonWithTitle:@"Ollama setup" target:self action:@selector(openOllamaSetup:)];
     ollama.frame = NSMakeRect(160, 240, 150, 30); [view addSubview:ollama];
     NSButton *lm = [NSButton buttonWithTitle:@"LM Studio setup" target:self action:@selector(openLMStudioSetup:)];
     lm.frame = NSMakeRect(320, 240, 150, 30); [view addSubview:lm];
-    NSTextField *completionLabel = [NSTextField labelWithString:@"Inline completion model (optional)"];
+    NSTextField *completionLabel = [NSTextField labelWithString:@"Inline model (optional; blank uses the model below)"];
     completionLabel.frame = NSMakeRect(0, 216, 480, 18); [view addSubview:completionLabel];
-    NSTextField *completionModel = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 186, 480, 24)];
+    NSComboBox *completionModel = [[NSComboBox alloc] initWithFrame:NSMakeRect(0, 186, 480, 24)];
+    completionModel.placeholderString = @"Use the same model";
     completionModel.stringValue = automatic.completionModel ?: @""; [view addSubview:completionModel];
     NSButton *codeBox = [NSButton checkboxWithTitle:@"Code completion mode (preserve syntax and indentation)" target:nil action:nil];
     codeBox.frame = NSMakeRect(0, 150, 480, 24); codeBox.state = automatic.coding ? NSControlStateValueOn : NSControlStateValueOff;
@@ -227,9 +270,9 @@ static void Alert(NSString *message) {
     endpointLabel.frame = NSMakeRect(0, 94, 480, 18); [view addSubview:endpointLabel];
     NSTextField *endpoint = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 66, 480, 24)];
     endpoint.stringValue = _endpoint; [view addSubview:endpoint];
-    NSTextField *modelLabel = [NSTextField labelWithString:@"Model name"];
+    NSTextField *modelLabel = [NSTextField labelWithString:@"Model (click Load models to populate this dropdown)"];
     modelLabel.frame = NSMakeRect(0, 36, 480, 18); [view addSubview:modelLabel];
-    NSTextField *model = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 8, 480, 24)];
+    NSComboBox *model = [[NSComboBox alloc] initWithFrame:NSMakeRect(0, 8, 480, 24)];
     model.stringValue = _model; [view addSubview:model];
     _settingsEndpoint = endpoint; _settingsModel = model; _settingsCompletion = completionModel; _settingsCoding = codeBox;
     alert.accessoryView = view; [alert addButtonWithTitle:@"Save"]; [alert addButtonWithTitle:@"Cancel"];
@@ -258,6 +301,7 @@ static void Alert(NSString *message) {
     [_probe cancel];
     _settingsEndpoint = nil; _settingsModel = nil; _settingsCompletion = nil; _settingsCoding = nil;
     _settingsStatus = nil; _testButton = nil;
+    _provider = nil; _refreshButton = nil;
 }
 @end
 
@@ -311,7 +355,7 @@ extern "C" NPP_EXPORT void beNotified(SCNotification *notification) {
                 // Configuration is untrusted input; collections do not implement boolValue.
                 automatic.enabled = WASettingFlag(settings[@"automatic"], NO);
                 automatic.coding = WASettingFlag(settings[@"coding"], YES);
-                automatic.completionModel = [settings[@"completionModel"] isKindOfClass:NSString.class] ? settings[@"completionModel"] : @"nextpad-complete:0.5b";
+                automatic.completionModel = [settings[@"completionModel"] isKindOfClass:NSString.class] ? settings[@"completionModel"] : @"";
                 [Controller() verifyConfiguredConnection];
             }
             break;
