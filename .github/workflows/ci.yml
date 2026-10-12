@@ -1,0 +1,19 @@
+name: macOS plugin checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify vendored files
+        run: shasum -a 256 -c vendor/SHA256SUMS
+      - name: Build universal plugin
+        run: bash scripts/build.sh
+      - name: Core and ABI checks
+        run: bash scripts/test.sh
+      - name: Synthetic HTTP checks
+        run: python3 tests/http_fixture.py
+      - name: Verify code signature
+        run: codesign --verify --strict build/WritingAssistant/WritingAssistant.dylib

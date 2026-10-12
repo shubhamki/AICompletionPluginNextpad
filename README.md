@@ -26,7 +26,7 @@ Choose **Plugins → Writing Assistant → Local model settings…**.
 - LM Studio: `http://127.0.0.1:1234/v1/chat/completions`
 - Model: the exact name of a model already installed/loaded in your server.
 
-This computer uses two local Qwen2.5-Coder 0.5B profiles:
+The recommended setup uses two local Qwen2.5-Coder 0.5B profiles:
 
 - **Model name:** `nextpad-coder:0.5b` for selected-code editing.
 - **Inline completion model:** `nextpad-complete:0.5b` for filling the gap at the caret.
@@ -64,7 +64,7 @@ Review the response and click Accept. Dismiss and closing the preview cancel the
 request. Undo reverses an accepted change. Existing completion shortcuts are left
 available; commands can be assigned shortcuts using the editor's facilities.
 
-Only literal loopback endpoints are accepted. Redirects and proxies are disabled.
+Only localhost or loopback IP endpoints are accepted. Redirects and proxies are disabled.
 The plugin transmits only the selection (up to 32 KB), or up to 8 KB before and
 2 KB after the caret. Language metadata is used for chat-based code prompts;
 local Ollama completion uses raw fill-in-the-middle tokens. It does not send
@@ -95,6 +95,8 @@ undo grouping, endpoint restrictions, and malformed model responses. The test
 runner can optionally contact the local model using synthetic text only.
 
 See `VALIDATION.md` for the actual checks performed and outstanding live UI tests.
+See `CONTRIBUTING.md` for development and upstream contribution guidance, and
+`RELEASE.md` for the remaining checks before publishing a release.
 
 ## Dependencies
 
