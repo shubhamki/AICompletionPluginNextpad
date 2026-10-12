@@ -2,3 +2,12 @@ build/
 .DS_Store
 __pycache__/
 *.pyc
+evidence/
+rea-evidence.json
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+WritingAssistant.plist

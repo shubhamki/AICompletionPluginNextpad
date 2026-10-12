@@ -4,7 +4,8 @@ Native plugin prototype with automatic code completion, selected-code improvemen
 and bug fixes, plus the original writing commands.
 Automatic suggestions appear beside the caret after a short typing pause and
 the local model's response. **Tab accepts; Escape dismisses.** Suggestions are
-enabled by default and can be switched off in Local model settings. The document
+disabled on a fresh installation; enable them in Local model settings after
+choosing your local server. The document
 is unchanged until acceptance. Explicit Rewrite and Fix grammar commands still
 use a separate review window.
 
@@ -31,7 +32,7 @@ The recommended setup uses two local Qwen2.5-Coder 0.5B profiles:
 - **Model name:** `nextpad-coder:0.5b` for selected-code editing.
 - **Inline completion model:** `nextpad-complete:0.5b` for filling the gap at the caret.
 
-Code mode and automatic suggestions are enabled. Inference is configured with
+Code mode is enabled by default; automatic suggestions require opt-in. Inference is configured with
 temperature 0.1, top-p 0.9, top-k 20, repetition penalty 1.05 and a 4096-token
 context. Inline completion requests one short line with a 96-token ceiling after
 a 450 ms typing pause. Both profiles reuse existing model weights; these are

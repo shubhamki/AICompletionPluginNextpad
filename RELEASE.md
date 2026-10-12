@@ -27,8 +27,7 @@ Do not claim notarization for the current artifact.
 Publish the ZIP, its SHA-256 checksum, release notes and corresponding source
 archive for the exact tag. Preserve all included license notices and provide the
 GPL corresponding source. Document the bounded local data flow from README.md.
-Raw investigation records in `evidence/` are development references and are not
-included in the plugin ZIP.
+Raw local investigation records are excluded from the public repository and ZIP.
 
 CI builds and runs deterministic core, ABI and synthetic HTTP checks. It does
 not perform live editor, Intel hardware, LM Studio or model-quality validation.
