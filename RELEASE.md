@@ -5,10 +5,11 @@ completion, code editing, acceptance and Undo; they do not establish compatibili
 with every host version, architecture or input method.
 
 Version 0.1.0 is the first preview release. Automated build, ABI, transport,
-model-discovery, privacy and package checks pass. The latest model picker has not
-completed live UI verification, and Intel execution, IME/split-view coverage and
-live LM Studio remain pending. The registry submission stays a draft until these
-remaining release checks and maintainer review are resolved. This preview is not
+model-discovery, privacy and package checks pass. The latest model picker and the
+published ZIP installation passed live checks on 2026-10-12. Intel execution,
+IME/split-view coverage, live LM Studio inference and browser-quarantine behavior
+remain pending. The registry submission can now be reviewed with these limitations
+explicit; catalog inclusion and signing requirements need maintainer approval. This preview is not
 a claim of production compatibility across those environments.
 
 Before tagging a release:

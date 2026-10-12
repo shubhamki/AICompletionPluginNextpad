@@ -26,9 +26,40 @@ Python expression checks, C++ syntax checks and C# completion-shape checks.
 Native FIM routing now applies only to base/completion models; instruction models
 use chat. The public instruction model also passed a synthetic completion through
 the plugin's real chat client, with no custom profiles required.
-The isolated setup harness is available via `bash scripts/setup-ui.sh`;
-live UI verification of this latest model picker is pending because the computer-use
-service timed out. The running editor still has the preceding setup version.
+The isolated setup harness is available via `bash scripts/setup-ui.sh`.
+The latest model picker and the published release installation passed live checks
+on 2026-10-12 as described below.
+
+## Downloaded 0.1.0 release: live installation and setup
+
+- Downloaded the published GitHub release ZIP and checked its SHA-256 against
+  the published checksum file: `3a6e746242e58d7d587954d2880a4781edaa185746a1b481c031ffb06e22a2a5`.
+- Imported that ZIP through Settings → Import → Import Plugin(s), acknowledged
+  Restart Required, and restarted after saving the open document with permission.
+- The installed dylib's SHA-256 matched the published artifact:
+  `3af97b460ddcec9d7cf19c3474771e5f241777c7ddc76f30e568752de8f132c2`.
+  Its code signature verified, and all seven commands appeared in the live host.
+- Load models populated the dropdown from the running local server. Keyboard
+  selection chose the public `qwen2.5-coder:0.5b` model; a blank inline override,
+  Test connection and Save succeeded. Reopening settings preserved the choice.
+- Ollama and LM Studio presets filled their respective default endpoints.
+  An unavailable loopback port showed Server unavailable, and saving automatic
+  suggestions without a successful test was blocked. Restoring and testing the
+  working endpoint succeeded.
+- A temporary clean configuration showed the standard public model as default,
+  a blank inline model, coding mode enabled and automatic suggestions disabled.
+  The prior settings were restored after this test.
+- In a synthetic scratch tab, typing produced the completion `b` for
+  `return a + `; Tab accepted it and one Undo restored the input. An earlier
+  two-space variant produced a poor duplicate-function suggestion, which was
+  dismissed. This confirms interaction behavior, not general model quality.
+- The scratch tab was discarded, the original saved document retained, and the
+  user's original model profiles and automatic-suggestion preference restored.
+
+The ZIP was downloaded through GitHub CLI and had no quarantine attribute. This
+verifies the actual published artifact and host import path, but not browser-added
+quarantine/Gatekeeper behavior or notarization. Intel, live LM Studio inference,
+full IME and split-view coverage remain unverified.
 
 Prior live checks on Nextpad++ 1.1.2 confirmed completion previews, Tab acceptance,
 Escape dismissal, selected-code correction and one-step Undo in synthetic scratch

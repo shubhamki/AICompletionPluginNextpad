@@ -19,7 +19,7 @@ this preview is not yet available through the official catalog.
 Requires Apple's Command Line Tools. Run `bash scripts/build.sh` to produce a
 universal arm64/x86_64 dylib and `build/WritingAssistant.zip`.
 
-In Nextpad++, use the plugin import command with that ZIP, or open the app's
+In Nextpad++, use **Settings → Import → Import Plugin(s)…** with that ZIP, or open the app's
 Plugins folder and copy the `WritingAssistant` build folder there. Fully quit
 and reopen Nextpad++ to load it. The folder and dylib must have matching names.
 Use the host's folder command rather than guessing its configuration directory.
