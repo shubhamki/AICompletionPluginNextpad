@@ -98,6 +98,11 @@ int main(int argc, char **argv) { @autoreleasepool {
     for (id bad in @[@[], @{}, @{@"choices": @"bad"}, @{@"choices": @[@42]}, @{@"choices": @[@{@"message": @{@"content": @42}}]}, @{@"choices": @[@{@"message": @{@"content": @"unfinished"}, @"finish_reason": @"length"}]}, @{@"choices": @[@{@"message": @{@"content": @"<think>incomplete"}, @"finish_reason": @"stop"}]}]) CHECK(WAExtractReply(data(bad), &err) == nil);
     CHECK(WAExtractReply([@"not json" dataUsingEncoding:NSUTF8StringEncoding], &err) == nil);
     NSDictionary *body = WARequestBody(@"local-model", @"Fix grammar", @"She go.");
+    CHECK(WAValidateModels(data(@{@"data":@[@{@"id":@"valid"}, @{@"id":@"inline"}]}), @[@"valid", @"inline"]) == nil);
+    CHECK([WAValidateModels(data(@{@"data":@[]}), @[@"missing"]) containsString:@"Model missing"]);
+    CHECK(WAValidateModels(data(@{@"data":@[@42]}), @[@"valid"]) != nil);
+    CHECK(WAValidateModels(data(@{@"data":@[@{@"id":@42}]}), @[@"valid"]) != nil);
+    CHECK(WAValidateModels(data(@[]), @[@"valid"]) != nil);
     CHECK([body[@"model"] isEqual:@"local-model"] && [body[@"stream"] isEqual:@NO]);
     CHECK([body[@"messages"][1][@"content"] isEqual:@"She go."]);
     std::cout << checks << " core checks passed\n";
@@ -151,6 +156,19 @@ int main(int argc, char **argv) { @autoreleasepool {
     if (argc > 2 && std::string(argv[1]) == "--http-tests") {
         NSString *endpoint = [NSString stringWithUTF8String:argv[2]];
         WALocalModel *client = [WALocalModel new];
+        for (NSArray *models in @[@[@"valid", @"inline"], @[@"missing"]]) {
+            __block bool checked = false; __block NSString *failure = nil;
+            [client checkEndpoint:endpoint models:models completion:^(NSString *e) { failure = e; checked = true; }];
+            NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5];
+            while (!checked && deadline.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+            CHECK(checked);
+            CHECK([models containsObject:@"missing"] ? [failure containsString:@"Model missing"] : failure == nil);
+        }
+        __block bool unreachable = false;
+        [client checkEndpoint:@"http://127.0.0.1:1/v1/chat/completions" models:@[@"valid"] completion:^(NSString *e) { unreachable = [e containsString:@"Server unavailable"]; }];
+        NSDate *probeDeadline = [NSDate dateWithTimeIntervalSinceNow:6];
+        while (!unreachable && probeDeadline.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+        CHECK(unreachable);
         for (NSString *scenario in @[@"valid", @"invalid-json", @"http-error", @"redirect", @"oversized", @"truncated"]) {
             __block bool done = false;
             __block NSString *reply = nil, *failure = nil;

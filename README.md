@@ -49,6 +49,20 @@ ollama create nextpad-complete:0.5b -f models/Completion.Modelfile
 
 The plugin does not download models or start servers itself.
 
+If no server is installed or running, open **Local model settings** and use
+**Ollama setup** or **LM Studio setup** for the official installation guidance.
+For LM Studio, download/load a model and start its local server; enter the exact
+model name and clear the Ollama-specific inline model field or replace it with
+an available model. For Ollama, create the profiles above after installing it.
+
+**Test connection** checks `/v1/models` with a five-second timeout and sends no
+document text. It distinguishes an unavailable server from a missing configured
+model, including the inline model when code mode is enabled. A successful check
+is required before saving automatic suggestions as enabled. The plugin performs
+one availability check at startup; connection failures pause automatic requests
+until a successful retest. Normal editing continues without a model server.
+Availability does not guarantee inference quality or that a backend runs offline.
+
 Type at least eight bytes of text and pause for an automatic continuation.
 The status bar shows “thinking locally” while the model runs. There is no global
 keyboard hook or Accessibility permission requirement; Tab is intercepted only

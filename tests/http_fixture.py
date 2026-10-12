@@ -13,6 +13,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        if self.path == "/v1/models":
+            body = json.dumps({"data": [{"id": "valid"}, {"id": "inline"}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         Handler.redirected = True
         self.send_error(500)
 
