@@ -5,6 +5,7 @@ BOOL WAValidEndpoint(NSString *endpoint);
 BOOL WAValidRequestEndpoint(NSString *endpoint);
 NSURL *WALocalRequestURL(NSString *endpoint);
 BOOL WASettingFlag(id value, BOOL fallback);
+NSString *WAValidateModels(NSData *data, NSArray<NSString *> *models);
 NSString *WAExtractReply(NSData *data, NSString **error);
 NSDictionary *WARequestBody(NSString *model, NSString *instruction, NSString *text);
 
@@ -16,4 +17,6 @@ NSDictionary *WARequestBody(NSString *model, NSString *instruction, NSString *te
             instruction:(NSString *)instruction text:(NSString *)text
              completion:(void (^)(NSString *reply, NSString *error))completion;
 - (void)cancel;
+- (void)checkEndpoint:(NSString *)endpoint models:(NSArray<NSString *> *)models
+           completion:(void (^)(NSString *error))completion;
 @end

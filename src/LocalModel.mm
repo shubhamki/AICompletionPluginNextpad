@@ -4,6 +4,22 @@ BOOL WASettingFlag(id value, BOOL fallback) {
     return [value isKindOfClass:NSNumber.class] ? [value boolValue] : fallback;
 }
 
+NSString *WAValidateModels(NSData *data, NSArray<NSString *> *models) {
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    id entries = [json isKindOfClass:NSDictionary.class] ? json[@"data"] : nil;
+    if (![entries isKindOfClass:NSArray.class]) return @"The server returned an invalid model list. Use an OpenAI-compatible local server.";
+    NSMutableSet *available = [NSMutableSet set];
+    for (id entry in entries) {
+        id name = [entry isKindOfClass:NSDictionary.class] ? entry[@"id"] : nil;
+        if (![name isKindOfClass:NSString.class]) return @"The server returned an invalid model list.";
+        [available addObject:name];
+    }
+    for (NSString *model in models) {
+        if (![available containsObject:model]) return [NSString stringWithFormat:@"Model missing: %@. Download it in Ollama or download/load it in LM Studio, or enter an available model name, then test again.", model];
+    }
+    return nil;
+}
+
 NSURL *WALocalRequestURL(NSString *endpoint) {
     if (!WAValidRequestEndpoint(endpoint)) return nil;
     NSURLComponents *url = [NSURLComponents componentsWithString:endpoint];
@@ -73,6 +89,25 @@ NSString *WAExtractReply(NSData *data, NSString **error) {
     NSURLSessionDataTask *_task;
     NSMutableData *_data;
     NSString *_failure;
+    NSArray<NSString *> *_modelsToCheck;
+}
+- (void)checkEndpoint:(NSString *)endpoint models:(NSArray<NSString *> *)models completion:(void (^)(NSString *))completion {
+    [self cancel];
+    if (!WAValidEndpoint(endpoint) || !models.count) { completion(@"Enter a valid local chat endpoint and model name first."); return; }
+    for (id model in models) {
+        if (![model isKindOfClass:NSString.class] || ![model length]) { completion(@"Enter a model name before testing the connection."); return; }
+    }
+    _modelsToCheck = [models copy];
+    self.completion = ^(NSString *reply, NSString *error) { completion(error); };
+    _data = [NSMutableData data]; _failure = nil;
+    NSURLSessionConfiguration *config = NSURLSessionConfiguration.ephemeralSessionConfiguration;
+    config.connectionProxyDictionary = @{};
+    config.HTTPCookieStorage = nil; config.URLCredentialStorage = nil; config.URLCache = nil;
+    config.timeoutIntervalForRequest = 5; config.timeoutIntervalForResource = 5;
+    _session = [NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:NSOperationQueue.mainQueue];
+    NSURLComponents *url = [NSURLComponents componentsWithURL:WALocalRequestURL(endpoint) resolvingAgainstBaseURL:NO];
+    url.path = @"/v1/models";
+    _task = [_session dataTaskWithURL:url.URL]; [_task resume];
 }
 - (void)requestEndpoint:(NSString *)endpoint model:(NSString *)model instruction:(NSString *)instruction
                   text:(NSString *)text completion:(void (^)(NSString *, NSString *))completion {
@@ -98,6 +133,7 @@ NSString *WAExtractReply(NSData *data, NSString **error) {
     self.completion = nil;
     [_task cancel]; [_session invalidateAndCancel];
     _task = nil; _session = nil; _data = nil;
+    _modelsToCheck = nil;
 }
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
     willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request
@@ -121,11 +157,16 @@ NSString *WAExtractReply(NSData *data, NSString **error) {
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
     if (session != _session) return;
     NSString *failure = _failure;
-    if (error && !failure) failure = @"Could not reach the local model. Start Ollama or LM Studio's local server, load a model, then try again.";
-    NSString *reply = failure ? nil : WAExtractReply(_data, &failure);
+    if (error && !failure) failure = @"Server unavailable. Install or open Ollama, or start LM Studio's local server, then use Test connection in Local model settings.";
+    NSString *reply = nil;
+    if (!failure) {
+        if (_modelsToCheck) failure = WAValidateModels(_data, _modelsToCheck);
+        else reply = WAExtractReply(_data, &failure);
+    }
     void (^done)(NSString *, NSString *) = self.completion;
     self.completion = nil;
     [_session finishTasksAndInvalidate]; _session = nil; _task = nil; _data = nil;
+    _modelsToCheck = nil;
     if (done) done(reply, failure);
 }
 @end
