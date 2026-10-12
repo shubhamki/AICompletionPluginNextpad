@@ -4,6 +4,13 @@ Current status: preview candidate. The existing live tests establish basic
 completion, code editing, acceptance and Undo; they do not establish compatibility
 with every host version, architecture or input method.
 
+Version 0.1.0 is the first preview release. Automated build, ABI, transport,
+model-discovery, privacy and package checks pass. The latest model picker has not
+completed live UI verification, and Intel execution, IME/split-view coverage and
+live LM Studio remain pending. The registry submission stays a draft until these
+remaining release checks and maintainer review are resolved. This preview is not
+a claim of production compatibility across those environments.
+
 Before tagging a release:
 
 - Run the contribution checks from a fresh checkout and record the commit,
@@ -16,7 +23,8 @@ Before tagging a release:
 - Install the ZIP in a fresh plugin configuration and verify setup, all seven
   commands, uninstall and reinstall. Models and servers must be installed separately.
 - Update VALIDATION.md and release notes with results and unresolved limitations.
-  Choose a version tag only after these checks; no production tag is created here.
+  Choose a production release only after these checks. Preview tags must explicitly
+  disclose pending checks and should not be presented as a stable catalog release.
 
 `bash scripts/build.sh` produces a universal dylib with an ad-hoc signature and
 `build/WritingAssistant.zip`. Ad-hoc signing is not Developer ID signing or
