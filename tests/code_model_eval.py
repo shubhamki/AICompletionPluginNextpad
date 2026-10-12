@@ -16,7 +16,7 @@ CASES = [
 results = []
 for name, prefix, suffix, language in CASES:
     body = {
-        "model": "nextpad-complete:0.5b", "raw": True, "stream": False, "keep_alive": "10m",
+        "model": "qwen2.5-coder:0.5b-base", "raw": True, "stream": False, "keep_alive": "10m",
         "prompt": f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>",
         "options": {"temperature": 0.1, "top_p": 0.9, "top_k": 20,
                     "repeat_penalty": 1.05, "num_ctx": 4096, "num_predict": 96,
@@ -55,4 +55,4 @@ for name, prefix, suffix, language in CASES:
     entry = {"case": name, "seconds": seconds, "completion": code, "validation": validation}
     results.append(entry)
     print(json.dumps(entry), flush=True)
-(ROOT / "evidence/code-model-eval.json").write_text(json.dumps(results, indent=2))
+(ROOT / "build/code-model-eval.json").write_text(json.dumps(results, indent=2))

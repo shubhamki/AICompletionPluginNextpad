@@ -19,49 +19,111 @@ Plugins folder and copy the `WritingAssistant` build folder there. Fully quit
 and reopen Nextpad++ to load it. The folder and dylib must have matching names.
 Use the host's folder command rather than guessing its configuration directory.
 
-## Use
+## First-time setup: Ollama
 
-Choose **Plugins → Writing Assistant → Local model settings…**.
+No custom `nextpad-*` model is required. The easiest starting setup uses one
+standard coding model for both editing and completion.
 
-- Ollama: `http://127.0.0.1:11434/v1/chat/completions`
-- LM Studio: `http://127.0.0.1:1234/v1/chat/completions`
-- Model: the exact name of a model already installed/loaded in your server.
+1. Install [Ollama for Mac](https://ollama.com/download/mac) and open the app.
+2. Open Terminal and download the small starter model:
 
-The recommended setup uses two local Qwen2.5-Coder 0.5B profiles:
+   ```sh
+   ollama pull qwen2.5-coder:0.5b
+   ```
 
-- **Model name:** `nextpad-coder:0.5b` for selected-code editing.
-- **Inline completion model:** `nextpad-complete:0.5b` for filling the gap at the caret.
+3. In Nextpad++, open **Plugins → Writing Assistant → Local model settings…**.
+4. Choose **Ollama (default port 11434)**. The plugin fills the endpoint for you.
+5. Click **Load models**, then select `qwen2.5-coder:0.5b` from the Model dropdown.
+   Leave **Inline model** blank to use the same model for both tasks.
+6. Click **Test connection**. After it succeeds, check **Suggest automatically as
+   I type** if desired, and click **Save**.
 
-Code mode is enabled by default; automatic suggestions require opt-in. Inference is configured with
-temperature 0.1, top-p 0.9, top-k 20, repetition penalty 1.05 and a 4096-token
-context. Inline completion requests one short line with a 96-token ceiling after
-a 450 ms typing pause. Both profiles reuse existing model weights; these are
-prompt and inference settings, not newly trained weights.
+The plugin requests the selected model by name. Ollama loads its installed weights
+when a generation request arrives. You do not need to run `ollama run` first.
+The plugin does not install models, start the server, or train model weights.
+The 0.5B model is a small starter; choose another installed coding/chat model for
+better quality if your hardware supports it.
 
-To reproduce the profiles on another machine:
+## First-time setup: LM Studio
+
+1. Install [LM Studio](https://lmstudio.ai/docs/app), download a coding/chat model,
+   and load it.
+2. Open LM Studio's **Developer** tab and click **Start server**. Note its port.
+3. Open the plugin's **Local model settings** and choose **LM Studio (default
+   port 1234)**. If your server shows a different port, change the endpoint field.
+4. Click **Load models** and select your coding/chat model from the dropdown.
+   Leave Inline model blank. Model names here come from the server; you do not
+   need to guess the filename or use an Ollama model name.
+5. Click **Test connection**, optionally enable automatic suggestions, then **Save**.
+
+Choose a text-generation/chat model, rather than an embeddings-only model. LM
+Studio's visible model list may include downloaded models when just-in-time
+loading is enabled. Listing a model does not guarantee it fits in memory or can
+generate successfully. See the [server guide](https://lmstudio.ai/docs/developer/core/server)
+and [model-list guide](https://lmstudio.ai/docs/developer/openai-compat/models).
+Servers requiring an API token are not supported by this plugin.
+
+## Endpoints and troubleshooting
+
+| Server | Default chat endpoint |
+| --- | --- |
+| Ollama | `http://127.0.0.1:11434/v1/chat/completions` |
+| LM Studio | `http://127.0.0.1:1234/v1/chat/completions` |
+
+The server creates the endpoint; the plugin just connects to it. `127.0.0.1`
+means this computer. The number after the colon is its port; the chat path stays
+`/v1/chat/completions`. The presets fill standard values but do not change the
+server's configuration. Choose Custom local endpoint to keep a customized URL.
+
+Ollama defaults to port 11434. If customized, check `OLLAMA_HOST`. For its Mac app,
+`launchctl getenv OLLAMA_HOST` shows the configured override; an empty result
+normally means the default. For a manually started server, check the listening
+address in its Terminal output. LM Studio shows its port in the Developer server
+settings. Keep the plugin endpoint on loopback. See [Ollama's configuration guide](https://docs.ollama.com/faq).
+
+- **Server unavailable:** open Ollama, or start LM Studio's Developer server;
+  confirm the port, then Load models or Test connection again.
+- **No models available:** download a model with the Ollama command above or in
+  LM Studio. Load it in LM Studio if needed, then click Load models again.
+- **Model missing:** select a name actually listed by your current server. Existing
+  settings are preserved when updating; if they name a missing `nextpad-*` profile,
+  choose a standard model and clear the optional Inline model field.
+- **Suggestions paused:** fix the server/model problem, Test connection again,
+  and Save. Failed requests do not retry on every keystroke.
+
+Load models and Test connection query `/v1/models` with a five-second timeout and
+send no document text. A fresh successful test for the current settings is required
+before saving automatic suggestions as enabled. The plugin checks once at startup.
+Normal editing works without a server. Use a locally running model; an available
+loopback server may still have a cloud-backed model configured.
+
+## Optional completion optimization and custom profiles
+
+For native Ollama fill-in-the-middle completion, optionally download the public
+base model and select it in the Inline model dropdown:
 
 ```sh
-ollama pull qwen2.5-coder:0.5b
 ollama pull qwen2.5-coder:0.5b-base
+```
+
+Keep `qwen2.5-coder:0.5b` as the main editing model. Native FIM uses a 96-token
+ceiling, temperature 0.1 and a 4096-token context. Standard instruction/chat models
+use chat completion with temperature 0.1 and a 128-token ceiling. Both produce one
+short code line after a 450 ms pause. LM Studio uses the chat path.
+
+Advanced users can create the optional `nextpad-coder:0.5b` and
+`nextpad-complete:0.5b` profiles from the supplied Modelfiles, after pulling their
+respective standard models:
+
+```sh
 ollama create nextpad-coder:0.5b -f models/Coder.Modelfile
 ollama create nextpad-complete:0.5b -f models/Completion.Modelfile
 ```
 
-The plugin does not download models or start servers itself.
+These are reusable prompt/inference configurations, not fine-tuned weights. They
+are optional and are never downloaded or created automatically by the plugin.
 
-If no server is installed or running, open **Local model settings** and use
-**Ollama setup** or **LM Studio setup** for the official installation guidance.
-For LM Studio, download/load a model and start its local server; enter the exact
-model name and clear the Ollama-specific inline model field or replace it with
-an available model. For Ollama, create the profiles above after installing it.
-
-**Test connection** checks `/v1/models` with a five-second timeout and sends no
-document text. It distinguishes an unavailable server from a missing configured
-model, including the inline model when code mode is enabled. A successful check
-is required before saving automatic suggestions as enabled. The plugin performs
-one availability check at startup; connection failures pause automatic requests
-until a successful retest. Normal editing continues without a model server.
-Availability does not guarantee inference quality or that a backend runs offline.
+## Use
 
 Type at least eight bytes of text and pause for an automatic continuation.
 The status bar shows “thinking locally” while the model runs. There is no global

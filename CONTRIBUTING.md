@@ -15,7 +15,11 @@ python3 tests/http_fixture.py
 
 These checks require no model download. The HTTP fixture binds only to loopback
 and uses synthetic text. Optional model quality checks are in
-`tests/code_model_eval.py` and require the documented Ollama profiles.
+`tests/code_model_eval.py` and require the standard
+`qwen2.5-coder:0.5b-base` Ollama model. Results are written to ignored `build/`.
+`build/core_tests --live-code` exercises the standard instruction model over the
+plugin's chat path. `bash scripts/setup-ui.sh` opens the real plugin settings in
+an isolated test app with temporary configuration; it does not open user documents.
 
 Keep changes and commits focused, explain the behavior and reason in the commit
 message, and add regression coverage for editor or transport changes. Include

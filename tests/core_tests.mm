@@ -98,6 +98,9 @@ int main(int argc, char **argv) { @autoreleasepool {
     for (id bad in @[@[], @{}, @{@"choices": @"bad"}, @{@"choices": @[@42]}, @{@"choices": @[@{@"message": @{@"content": @42}}]}, @{@"choices": @[@{@"message": @{@"content": @"unfinished"}, @"finish_reason": @"length"}]}, @{@"choices": @[@{@"message": @{@"content": @"<think>incomplete"}, @"finish_reason": @"stop"}]}]) CHECK(WAExtractReply(data(bad), &err) == nil);
     CHECK(WAExtractReply([@"not json" dataUsingEncoding:NSUTF8StringEncoding], &err) == nil);
     NSDictionary *body = WARequestBody(@"local-model", @"Fix grammar", @"She go.");
+    CHECK(([WAParseModels(data(@{@"data":@[@{@"id":@"z"}, @{@"id":@"a"}, @{@"id":@"z"}]}), &err) isEqual:@[@"a", @"z"]]));
+    CHECK(WAParseModels(data(@{@"data":@[]}), &err).count == 0);
+    CHECK(WAParseModels(data(@{@"data":@[@{@"id":@""}]}), &err) == nil);
     CHECK(WAValidateModels(data(@{@"data":@[@{@"id":@"valid"}, @{@"id":@"inline"}]}), @[@"valid", @"inline"]) == nil);
     CHECK([WAValidateModels(data(@{@"data":@[]}), @[@"missing"]) containsString:@"Model missing"]);
     CHECK(WAValidateModels(data(@{@"data":@[@42]}), @[@"valid"]) != nil);
@@ -138,7 +141,9 @@ int main(int argc, char **argv) { @autoreleasepool {
     NSDictionary *chat = WACodeRequest(@"local", s, NO);
     CHECK([WACodePrompt(s) containsString:@"</PREFIX>\n<CURSOR>\n<SUFFIX>\n"]);
     CHECK([chat[@"temperature"] isEqual:@0.1] && [chat[@"max_tokens"] isEqual:@128]);
-    CHECK([WAFIMEndpoint(@"http://127.0.0.1:11434/v1/chat/completions", @"nextpad-coder:0.5b") isEqual:@"http://127.0.0.1:11434/api/generate"]);
+    CHECK(WAFIMEndpoint(@"http://127.0.0.1:11434/v1/chat/completions", @"nextpad-coder:0.5b") == nil);
+    CHECK(WAFIMEndpoint(@"http://127.0.0.1:11434/v1/chat/completions", @"qwen2.5-coder:0.5b") == nil);
+    CHECK([WAFIMEndpoint(@"http://127.0.0.1:11434/v1/chat/completions", @"qwen2.5-coder:0.5b-base") hasSuffix:@"/api/generate"]);
     CHECK(WAFIMEndpoint(@"http://127.0.0.1:1234/v1/chat/completions", @"nextpad-coder:0.5b") == nil);
     CHECK(WAFIMEndpoint(@"http://127.0.0.1:11434/v1/chat/completions", @"qwen2.5:0.5b") == nil);
     CHECK([WAFIMEndpoint(@"http://127.0.0.1:11434/v1/chat/completions", @"nextpad-complete:0.5b") isEqual:@"http://127.0.0.1:11434/api/generate"]);
@@ -156,6 +161,11 @@ int main(int argc, char **argv) { @autoreleasepool {
     if (argc > 2 && std::string(argv[1]) == "--http-tests") {
         NSString *endpoint = [NSString stringWithUTF8String:argv[2]];
         WALocalModel *client = [WALocalModel new];
+        __block bool listed = false;
+        [client listEndpoint:endpoint completion:^(NSArray *models, NSString *e) { listed = !e && [models isEqual:@[@"inline", @"valid"]]; }];
+        NSDate *listDeadline = [NSDate dateWithTimeIntervalSinceNow:5];
+        while (!listed && listDeadline.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+        CHECK(listed);
         for (NSArray *models in @[@[@"valid", @"inline"], @[@"missing"]]) {
             __block bool checked = false; __block NSString *failure = nil;
             [client checkEndpoint:endpoint models:models completion:^(NSString *e) { failure = e; checked = true; }];
@@ -204,6 +214,17 @@ int main(int argc, char **argv) { @autoreleasepool {
             CHECK(done && correct);
         }
         std::cout << "HTTP failure, redirect, reply size and cancellation checks passed\n";
+    }
+    if (argc > 1 && std::string(argv[1]) == "--live-code") {
+        s = {}; s.context = "def add(a, b):\n    return a + "; s.suffix = "\n"; s.language = "Python";
+        __block bool done = false; __block NSString *completion = nil;
+        WALocalModel *client = [WALocalModel new];
+        [client requestEndpoint:@"http://127.0.0.1:11434/v1/chat/completions" body:WACodeRequest(@"qwen2.5-coder:0.5b", s, NO)
+            completion:^(NSString *reply, NSString *failure) { if (!failure) completion = WANormalizeCode(reply, s, YES); done = true; }];
+        NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:60];
+        while (!done && deadline.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+        [client cancel]; CHECK(done && [completion isEqual:@"b"]);
+        std::cout << "Standard instruction model chat completion passed\n";
     }
     if (argc > 1 && std::string(argv[1]) == "--live") {
         __block bool done = false, success = false;

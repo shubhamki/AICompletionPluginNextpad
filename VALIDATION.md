@@ -18,6 +18,18 @@ blocking automatic enablement until a successful check, successful testing of
 configured models, and saving the tested settings. The updated plugin was installed
 and the open editor document was preserved during restart.
 
+The model-discovery update adds a standard instruction-model default, an optional
+inline model that reuses the main model when blank, server presets and editable
+model dropdowns populated from the local server. It passes 107 core checks and
+synthetic model-list transport checks. Public Qwen base-model examples passed
+Python expression checks, C++ syntax checks and C# completion-shape checks.
+Native FIM routing now applies only to base/completion models; instruction models
+use chat. The public instruction model also passed a synthetic completion through
+the plugin's real chat client, with no custom profiles required.
+The isolated setup harness is available via `bash scripts/setup-ui.sh`;
+live UI verification of this latest model picker is pending because the computer-use
+service timed out. The running editor still has the preceding setup version.
+
 Prior live checks on Nextpad++ 1.1.2 confirmed completion previews, Tab acceptance,
 Escape dismissal, selected-code correction and one-step Undo in synthetic scratch
 documents. Local model examples checked Python expressions and C++ syntax.
