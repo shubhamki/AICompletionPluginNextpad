@@ -197,6 +197,8 @@ static void Alert(NSString *message) {
 - (void)openLMStudioSetup:(id)sender { [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://lmstudio.ai/docs/app"]]; }
 - (void)settings {
     [_probe cancel];
+    // A previous startup check cannot re-enable a connection that failed later.
+    _verifiedConfiguration = nil;
     [automatic cancel];
     [self dismiss:nil];
     NSAlert *alert = [NSAlert new];
