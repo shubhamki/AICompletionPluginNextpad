@@ -9,6 +9,9 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Public source privacy checks
+        run: python3 scripts/privacy_check.py
       - name: Verify vendored files
         run: shasum -a 256 -c vendor/SHA256SUMS
       - name: Build universal plugin
