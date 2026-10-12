@@ -2,7 +2,7 @@
 #import "LocalModel.h"
 
 static NSString *Text(const std::string &text) {
-    return [[NSString alloc] initWithBytes:text.data() length:text.size() encoding:NSUTF8StringEncoding];
+    return [[NSString alloc] initWithBytes:text.data() length:text.size() encoding:NSUTF8StringEncoding] ?: @"";
 }
 NSString *WACodeLanguage(const wa::Snapshot &s) {
     NSString *language = Text(s.language);

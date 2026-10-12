@@ -65,11 +65,14 @@ public:
         if (!s.buffer || !s.document) { error = "Could not identify the active document."; return false; }
         s.revision = revision;
         s.text = read(s.view, length);
+        if (s.text.find('\0') != std::string::npos) {
+            error = "Documents containing NUL bytes are not supported."; return false;
+        }
         s.eolMode = static_cast<int>(send(s.view, SCI_GETEOLMODE));
         int language = 0; char languageName[1024]{};
         send(host._nppHandle, NPPM_GETCURRENTLANGTYPE, 0, (intptr_t)&language);
         send(host._nppHandle, NPPM_GETLANGUAGENAME, language, (intptr_t)languageName);
-        s.language = languageName;
+        s.language.assign(languageName, strnlen(languageName, sizeof(languageName)));
         if (action == Action::Continue) {
             size_t begin = s.start > 8192 ? s.start - 8192 : 0;
             while (begin < s.start && (static_cast<unsigned char>(s.text[begin]) & 0xc0) == 0x80) ++begin;

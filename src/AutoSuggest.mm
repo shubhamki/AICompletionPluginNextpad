@@ -81,6 +81,7 @@
     if (!view || _editor->send(view, SCI_AUTOCACTIVE) || _editor->send(view, SCI_CALLTIPACTIVE)) return;
     std::string error;
     if (!_editor->capture(wa::Action::Continue, _snapshot, error) || _snapshot.context.size() < 8) return;
+    if (![[NSString alloc] initWithBytes:_snapshot.suffix.data() length:_snapshot.suffix.size() encoding:NSUTF8StringEncoding]) { [self cancel]; return; }
     NSString *context = [[NSString alloc] initWithBytes:_snapshot.context.data() length:_snapshot.context.size() encoding:NSUTF8StringEncoding];
     if (!context) return;
     BOOL coding = _coding;

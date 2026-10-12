@@ -58,6 +58,11 @@ int main(int argc, char **argv) { @autoreleasepool {
     text += '!'; CHECK(!ed.matches(s)); text.pop_back();
     readOnly = true; CHECK(!ed.apply(s, "oops")); readOnly = false;
     CHECK(!ed.apply(s, std::string("a\0b", 3)));
+    std::string original = text;
+    text = std::string("a\0b", 3); caret = anchor = text.size();
+    CHECK(!ed.capture(wa::Action::Continue, s, error));
+    text = original; caret = text.size(); anchor = 0;
+    CHECK(ed.capture(wa::Action::Grammar, s, error));
     CHECK(ed.apply(s, "She went to school yesterday."));
     CHECK(text == "She went to school yesterday." && undoStarts == 1 && undoEnds == 1);
     CHECK(!ed.apply(s, "duplicate"));

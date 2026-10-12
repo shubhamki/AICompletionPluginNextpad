@@ -89,7 +89,7 @@ static void Alert(NSString *message) {
     wa::Snapshot captured;
     if (!editor.capture(action, captured, error)) { Alert(String(error)); return; }
     NSString *context = String(captured.context);
-    if (!context) { Alert(@"The selected text is not valid UTF-8."); return; }
+    if (!context || !String(captured.suffix)) { Alert(@"The selected text or nearby context is not valid UTF-8."); return; }
     // A marked-text input is still being composed and must not be sent or replaced.
     id responder = NSApp.keyWindow.firstResponder;
     if ([responder respondsToSelector:@selector(hasMarkedText)] && [responder hasMarkedText]) {
@@ -248,8 +248,9 @@ extern "C" NPP_EXPORT void beNotified(SCNotification *notification) {
                 automatic = [[WAAutoSuggest alloc] initWithEditor:&editor];
                 automatic.endpoint = Controller().endpoint; automatic.model = Controller().model;
                 NSDictionary *settings = configPath ? [NSDictionary dictionaryWithContentsOfFile:configPath] : nil;
-                automatic.enabled = settings[@"automatic"] ? [settings[@"automatic"] boolValue] : YES;
-                automatic.coding = settings[@"coding"] ? [settings[@"coding"] boolValue] : YES;
+                // Configuration is untrusted input; collections do not implement boolValue.
+                automatic.enabled = [settings[@"automatic"] isKindOfClass:NSNumber.class] ? [settings[@"automatic"] boolValue] : NO;
+                automatic.coding = [settings[@"coding"] isKindOfClass:NSNumber.class] ? [settings[@"coding"] boolValue] : YES;
                 automatic.completionModel = [settings[@"completionModel"] isKindOfClass:NSString.class] ? settings[@"completionModel"] : @"nextpad-complete:0.5b";
             }
             break;
