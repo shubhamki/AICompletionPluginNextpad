@@ -24,12 +24,16 @@ static void Alert(NSString *message) {
     wa::Snapshot _snapshot;
     bool _pending;
     uint64_t _generation;
+    NSArray *_verifiedConfiguration;
+    NSTextField *_settingsEndpoint, *_settingsModel, *_settingsCompletion, *_settingsStatus;
+    NSButton *_settingsCoding, *_testButton;
 }
 @property(nonatomic, strong) NSPanel *panel;
 @property(nonatomic, strong) NSTextView *preview;
 @property(nonatomic, strong) NSTextField *status;
 @property(nonatomic, strong) NSButton *acceptButton;
 @property(nonatomic, strong) WALocalModel *client;
+@property(nonatomic, strong) WALocalModel *probe;
 @property(nonatomic, copy) NSString *endpoint;
 @property(nonatomic, copy) NSString *model;
 - (void)begin:(wa::Action)action;
@@ -37,12 +41,14 @@ static void Alert(NSString *message) {
 - (void)checkContext;
 - (void)settings;
 - (void)dismiss:(id)sender;
+- (void)verifyConfiguredConnection;
 @end
 
 @implementation WAController
 - (instancetype)init {
     if ((self = [super init])) {
         _client = [WALocalModel new];
+        _probe = [WALocalModel new];
         NSDictionary *settings = configPath ? [NSDictionary dictionaryWithContentsOfFile:configPath] : nil;
         _endpoint = [settings[@"endpoint"] isKindOfClass:NSString.class] && WAValidEndpoint(settings[@"endpoint"]) ? settings[@"endpoint"] : defaultEndpoint;
         _model = [settings[@"model"] isKindOfClass:NSString.class] && [settings[@"model"] length] ? settings[@"model"] : defaultModel;
@@ -85,6 +91,7 @@ static void Alert(NSString *message) {
 - (void)begin:(wa::Action)action {
     [automatic cancel];
     if (stopped) return;
+    if (!automatic.connectionReady) { [self settings]; return; }
     std::string error;
     wa::Snapshot captured;
     if (!editor.capture(action, captured, error)) { Alert(String(error)); return; }
@@ -123,7 +130,7 @@ static void Alert(NSString *message) {
             WAController *self = weakSelf;
             if (!self || stopped || token != self->_generation) return;
             if (!editor.matches(self->_snapshot)) { [self invalidate]; return; }
-            if (failure) { self->_pending = false; self.status.stringValue = failure; return; }
+            if (failure) { automatic.connectionReady = NO; self->_pending = false; self.status.stringValue = failure; return; }
             if (code) reply = WANormalizeCode(reply, self->_snapshot, action == wa::Action::Continue);
             if (!reply.length) { self->_pending = false; self.status.stringValue = @"No usable code completion returned. Try a more specific selection."; return; }
             self.preview.string = reply;
@@ -157,13 +164,53 @@ static void Alert(NSString *message) {
     _preview.string = @""; _snapshot = {};
 }
 - (BOOL)windowShouldClose:(NSWindow *)sender { [self dismiss:nil]; return NO; }
+- (NSArray *)configuration:(NSString *)endpoint model:(NSString *)model completion:(NSString *)completion coding:(BOOL)coding {
+    return @[endpoint, model, coding && completion.length ? completion : model];
+}
+- (void)verifyConfiguredConnection {
+    automatic.connectionReady = NO;
+    NSArray *configuration = [self configuration:_endpoint model:_model completion:automatic.completionModel coding:automatic.coding];
+    __weak WAController *weakSelf = self;
+    [_probe checkEndpoint:configuration[0] models:@[configuration[1], configuration[2]] completion:^(NSString *failure) {
+        WAController *self = weakSelf; if (!self || stopped) return;
+        self->_verifiedConfiguration = failure ? nil : configuration;
+        automatic.connectionReady = !failure;
+        editor.send(editor.host._nppHandle, NPPM_SETSTATUSBAR, 0,
+            (intptr_t)(failure ? @"Writing Assistant unavailable: open Local model settings and test the connection." : @"Writing Assistant: local server and models available.").UTF8String);
+    }];
+}
+- (void)testSettingsConnection:(id)sender {
+    NSString *(^trim)(NSString *) = ^NSString *(NSString *s) { return [s stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; };
+    NSArray *configuration = [self configuration:trim(_settingsEndpoint.stringValue) model:trim(_settingsModel.stringValue)
+        completion:trim(_settingsCompletion.stringValue) coding:_settingsCoding.state == NSControlStateValueOn];
+    _verifiedConfiguration = nil; _testButton.enabled = NO;
+    _settingsStatus.stringValue = @"Checking local server and model availability…";
+    __weak WAController *weakSelf = self;
+    [_probe checkEndpoint:configuration[0] models:@[configuration[1], configuration[2]] completion:^(NSString *failure) {
+        WAController *self = weakSelf; if (!self || stopped || !self->_settingsStatus) return;
+        self->_testButton.enabled = YES;
+        self->_verifiedConfiguration = failure ? nil : configuration;
+        self->_settingsStatus.stringValue = failure ?: @"Connection successful. Models available. Save to apply, then run your command or start typing.";
+    }];
+}
+- (void)openOllamaSetup:(id)sender { [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://ollama.com/download/mac"]]; }
+- (void)openLMStudioSetup:(id)sender { [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://lmstudio.ai/docs/app"]]; }
 - (void)settings {
+    [_probe cancel];
     [automatic cancel];
     [self dismiss:nil];
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"Local writing assistant";
-    alert.informativeText = @"Code mode uses nearby code before and after the caret. Tab accepts; Escape dismisses. Use the local nextpad-coder:0.5b profile with Ollama (11434), or a coding model in LM Studio (1234).";
-    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 480, 240)];
+    alert.informativeText = @"No local server? Install and open Ollama, then create the profiles from the README; or download a coding model in LM Studio and start its local server. Enter its exact model name below. Test connection before enabling automatic suggestions. Testing sends no document text. Tab accepts; Escape dismisses.";
+    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 480, 350)];
+    _settingsStatus = [NSTextField wrappingLabelWithString:@"Test the server and models, then Save. Normal editing works without a server."];
+    _settingsStatus.frame = NSMakeRect(0, 275, 480, 65); [view addSubview:_settingsStatus];
+    _testButton = [NSButton buttonWithTitle:@"Test connection" target:self action:@selector(testSettingsConnection:)];
+    _testButton.frame = NSMakeRect(0, 240, 150, 30); [view addSubview:_testButton];
+    NSButton *ollama = [NSButton buttonWithTitle:@"Ollama setup" target:self action:@selector(openOllamaSetup:)];
+    ollama.frame = NSMakeRect(160, 240, 150, 30); [view addSubview:ollama];
+    NSButton *lm = [NSButton buttonWithTitle:@"LM Studio setup" target:self action:@selector(openLMStudioSetup:)];
+    lm.frame = NSMakeRect(320, 240, 150, 30); [view addSubview:lm];
     NSTextField *completionLabel = [NSTextField labelWithString:@"Inline completion model (optional)"];
     completionLabel.frame = NSMakeRect(0, 216, 480, 18); [view addSubview:completionLabel];
     NSTextField *completionModel = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 186, 480, 24)];
@@ -182,22 +229,33 @@ static void Alert(NSString *message) {
     modelLabel.frame = NSMakeRect(0, 36, 480, 18); [view addSubview:modelLabel];
     NSTextField *model = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 8, 480, 24)];
     model.stringValue = _model; [view addSubview:model];
+    _settingsEndpoint = endpoint; _settingsModel = model; _settingsCompletion = completionModel; _settingsCoding = codeBox;
     alert.accessoryView = view; [alert addButtonWithTitle:@"Save"]; [alert addButtonWithTitle:@"Cancel"];
-    if ([alert runModal] != NSAlertFirstButtonReturn) return;
+    for (;;) {
+    if ([alert runModal] != NSAlertFirstButtonReturn) break;
     NSString *newEndpoint = [endpoint.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     NSString *newModel = [model.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     NSString *newCompletionModel = [completionModel.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     if (!WAValidEndpoint(newEndpoint) || !newModel.length) {
-        Alert(@"Enter a model name and a loopback URL such as http://127.0.0.1:11434/v1/chat/completions."); return;
+        _settingsStatus.stringValue = @"Enter a model name and a loopback URL such as http://127.0.0.1:11434/v1/chat/completions."; continue;
     }
     BOOL enabled = autoBox.state == NSControlStateValueOn;
     BOOL coding = codeBox.state == NSControlStateValueOn;
+    NSArray *configuration = [self configuration:newEndpoint model:newModel completion:newCompletionModel coding:coding];
+    BOOL verified = [_verifiedConfiguration isEqual:configuration];
+    if (enabled && !verified) { _settingsStatus.stringValue = @"Use Test connection successfully for these settings before enabling automatic suggestions."; continue; }
     if (!configPath || ![@{@"endpoint": newEndpoint, @"model": newModel, @"completionModel": newCompletionModel, @"automatic": @(enabled), @"coding": @(coding)} writeToFile:configPath atomically:YES]) {
-        Alert(@"Could not save settings in the host's plugin configuration directory."); return;
+        _settingsStatus.stringValue = @"Could not save settings in the host's plugin configuration directory."; continue;
     }
     _endpoint = newEndpoint; _model = newModel;
     automatic.endpoint = newEndpoint; automatic.model = newModel; automatic.enabled = enabled; automatic.coding = coding;
     automatic.completionModel = newCompletionModel;
+    automatic.connectionReady = verified;
+    break;
+    }
+    [_probe cancel];
+    _settingsEndpoint = nil; _settingsModel = nil; _settingsCompletion = nil; _settingsCoding = nil;
+    _settingsStatus = nil; _testButton = nil;
 }
 @end
 
@@ -252,6 +310,7 @@ extern "C" NPP_EXPORT void beNotified(SCNotification *notification) {
                 automatic.enabled = WASettingFlag(settings[@"automatic"], NO);
                 automatic.coding = WASettingFlag(settings[@"coding"], YES);
                 automatic.completionModel = [settings[@"completionModel"] isKindOfClass:NSString.class] ? settings[@"completionModel"] : @"nextpad-complete:0.5b";
+                [Controller() verifyConfiguredConnection];
             }
             break;
         case SCN_CHARADDED:
@@ -267,6 +326,7 @@ extern "C" NPP_EXPORT void beNotified(SCNotification *notification) {
             ++editor.revision; [automatic cancel]; [controller invalidate]; break;
         case NPPN_BEFORESHUTDOWN: case NPPN_SHUTDOWN:
             stopped = true; [controller dismiss:nil];
+            [controller.probe cancel];
             [automatic shutdown]; automatic = nil;
             controller.panel.delegate = nil; [controller.panel close]; controller = nil;
             break;

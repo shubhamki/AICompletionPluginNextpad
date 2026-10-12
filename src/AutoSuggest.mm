@@ -67,7 +67,7 @@
 }
 - (void)characterAdded {
     [self cancel];
-    if (!_enabled || ![self editorFocused]) return;
+    if (!_enabled || !_connectionReady || ![self editorFocused]) return;
     __weak WAAutoSuggest *weakSelf = self;
     _timer = [NSTimer scheduledTimerWithTimeInterval:_coding ? 0.45 : 0.6 repeats:NO block:^(NSTimer *) { [weakSelf request]; }];
 }
@@ -76,7 +76,7 @@
 }
 - (void)request {
     _timer = nil;
-    if (!_enabled || ![self editorFocused]) return;
+    if (!_enabled || !_connectionReady || ![self editorFocused]) return;
     auto view = _editor->currentView();
     if (!view || _editor->send(view, SCI_AUTOCACTIVE) || _editor->send(view, SCI_CALLTIPACTIVE)) return;
     std::string error;
@@ -98,7 +98,7 @@
             if (!self || generation != self->_generation) return;
             self->_waiting = NO;
             if (![self editorFocused] || !self->_editor->matches(self->_snapshot)) { [self cancel]; return; }
-            if (failure) { [self status:@"Writing Assistant: no reply — check Local model settings."]; return; }
+            if (failure) { self.connectionReady = NO; [self status:@"Writing Assistant paused: use Test connection in Local model settings."]; return; }
             if (self->_editor->send(view, SCI_AUTOCACTIVE) || self->_editor->send(view, SCI_CALLTIPACTIVE)) { [self cancel]; return; }
             NSString *suggestion = coding ? WANormalizeCode(reply, self->_snapshot, YES) : WANormalizeSuggestion(reply, context);
             if (!suggestion.length) { [self cancel]; return; }

@@ -3,6 +3,7 @@
 
 @interface WAAutoSuggest : NSObject
 @property(nonatomic) BOOL enabled;
+@property(nonatomic) BOOL connectionReady;
 @property(nonatomic) BOOL coding;
 @property(nonatomic, copy) NSString *endpoint;
 @property(nonatomic, copy) NSString *model;
