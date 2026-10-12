@@ -11,6 +11,11 @@ use a separate review window.
 
 ## Build and install
 
+For a prebuilt package, download `WritingAssistant.zip` from the
+[0.1.0 preview release](https://github.com/shubhamki/AICompletionPluginNextpad/releases/tag/v0.1.0).
+Read the release limitations before installing. Registry inclusion is pending;
+this preview is not yet available through the official catalog.
+
 Requires Apple's Command Line Tools. Run `bash scripts/build.sh` to produce a
 universal arm64/x86_64 dylib and `build/WritingAssistant.zip`.
 

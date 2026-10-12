@@ -22,3 +22,5 @@ jobs:
         run: python3 tests/http_fixture.py
       - name: Verify code signature
         run: codesign --verify --strict build/WritingAssistant/WritingAssistant.dylib
+      - name: Release package checks
+        run: python3 scripts/release-check.py
